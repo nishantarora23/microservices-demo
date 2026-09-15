@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -26,6 +27,9 @@ import (
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/productcatalogservice/genproto"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -38,7 +42,57 @@ func loadCatalog(catalog *pb.ListProductsResponse) error {
 		return loadCatalogFromAlloyDB(catalog)
 	}
 
+	if os.Getenv("PRODUCT_CATALOG_S3_BUCKET") != "" {
+		return loadCatalogFromS3(catalog)
+	}
+
 	return loadCatalogFromLocalFile(catalog)
+}
+
+func loadCatalogFromS3(catalog *pb.ListProductsResponse) error {
+	log.Info("loading catalog from S3...")
+
+	bucket := os.Getenv("PRODUCT_CATALOG_S3_BUCKET")
+	key := os.Getenv("PRODUCT_CATALOG_S3_KEY")
+	if key == "" {
+		key = "products.json"
+	}
+
+	// IRSA: no credentials here. The SDK reads AWS_ROLE_ARN and
+	// AWS_WEB_IDENTITY_TOKEN_FILE (injected by EKS into the pod because the
+	// ServiceAccount is annotated with the Day 4 role ARN) and exchanges
+	// the mounted token for temporary credentials automatically.
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		log.Warnf("failed to load AWS config: %v", err)
+		return err
+	}
+
+	client := s3.NewFromConfig(cfg)
+
+	result, err := client.GetObject(context.Background(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		log.Warnf("failed to get object %s/%s from S3: %v", bucket, key, err)
+		return err
+	}
+	defer result.Body.Close()
+
+	catalogJSON, err := io.ReadAll(result.Body)
+	if err != nil {
+		log.Warnf("failed to read S3 object body: %v", err)
+		return err
+	}
+
+	if err := jsonpb.Unmarshal(bytes.NewReader(catalogJSON), catalog); err != nil {
+		log.Warnf("failed to parse the catalog JSON: %v", err)
+		return err
+	}
+
+	log.Info("successfully parsed product catalog json from S3")
+	return nil
 }
 
 func loadCatalogFromLocalFile(catalog *pb.ListProductsResponse) error {
