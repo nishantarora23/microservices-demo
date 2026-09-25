@@ -936,7 +936,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: REGISTRY/REPOSITORY:IMAGE_TAG
+        image: 327745427643.dkr.ecr.ca-west-1.amazonaws.com/online-boutique/productcatalogservice:d596cd602b86dc6945037dfcc73662a7961f0a97
         ports:
         - containerPort: 3550
         env:
