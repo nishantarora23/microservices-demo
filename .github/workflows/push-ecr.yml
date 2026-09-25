@@ -1,20 +1,24 @@
-name: "Push Image to ECR"
+name: "Build & Push Productcatalog Image to AWS ECR"
 on:
   push:
-    branches:
-      - main
+    branches: [ main, productcatalog-s3-irsa ]  # TODO: narrow back to [ main ] once this branch is merged
     paths:
-      - '/src/productcatalogservice/**'
+      - 'src/productcatalogservice/**'
+permissions:
+  id-token: write
+  contents: write
 jobs:
-  authorize:
-    runs-on: ubuntu-24.04
+  build-and-push:         
+    name: Build and Push to ECR          
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::123456789012:role/github-oidc-role
+          role-to-assume: arn:aws:iam::327745427643:role/github-oidc-role
           aws-region: ca-west-1
 
       - name: Login to Amazon ECR
@@ -27,6 +31,9 @@ jobs:
           REPOSITORY: online-boutique/productcatalogservice
           IMAGE_TAG: ${{ github.sha }}
         run: |
-	  cd /src/productcatalogservice
-          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          (cd src/productcatalogservice && docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .)
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          sed -i "s|image: REGISTRY/REPOSITORY:IMAGE_TAG|image: $REGISTRY/$REPOSITORY:$IMAGE_TAG|" release/kubernetes-manifests.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "deploy ${IMAGE_TAG} on productcatalog" && git push  
