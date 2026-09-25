@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -32,6 +33,7 @@ import (
 
 	"cloud.google.com/go/profiler"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
@@ -112,12 +114,22 @@ func main() {
 		}
 	}()
 
+	go startMetricsServer("8080")
+
 	if os.Getenv("PORT") != "" {
 		port = os.Getenv("PORT")
 	}
 	log.Infof("starting grpc server at :%s", port)
 	run(port)
 	select {}
+}
+
+func startMetricsServer(port string) {
+	log.Infof("starting metrics server at :%s/metrics", port)
+	http.Handle("/metrics", promhttp.Handler())
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil); err != nil {
+		log.Warnf("metrics server failed: %v", err)
+	}
 }
 
 func run(port string) string {
