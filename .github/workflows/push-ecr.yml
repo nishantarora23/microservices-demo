@@ -33,7 +33,7 @@ jobs:
         run: |
           (cd src/productcatalogservice && docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .)
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
-          sed -i "s|image: REGISTRY/REPOSITORY:IMAGE_TAG|image: $REGISTRY/$REPOSITORY:$IMAGE_TAG|" release/kubernetes-manifests.yaml
+          sed -i "s|image:.*productcatalogservice:.*|image: $REGISTRY/$REPOSITORY:$IMAGE_TAG|" release/kubernetes-manifests.yaml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -am "deploy ${IMAGE_TAG} on productcatalog" && git push  
