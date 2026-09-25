@@ -83,3 +83,4 @@ func (p *productCatalog) parseCatalog() []*pb.Product {
 	return p.catalog.Products
 }
 // debug trigger 1790308350
+// rebuild trigger 1790350784 - image was deleted during cluster teardown cleanup
