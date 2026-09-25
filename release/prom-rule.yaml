@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cartservice-alerts
+  namespace: default
+  labels:
+    release: kube-prom-stack   # same gotcha as ServiceMonitor — required for Prometheus to pick this up at all
+spec:
+  groups:
+  - name: cartservice.rules
+    rules:
+    - alert: CartServiceCrashLooping
+      expr: increase(kube_pod_container_status_restarts_total{namespace="default", pod=~"cartservice.*"}[15m]) > 3
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "cartservice is crashlooping"
+        description: "{{ $labels.pod }} has restarted {{ $value }} times in the last 15 minutes"
