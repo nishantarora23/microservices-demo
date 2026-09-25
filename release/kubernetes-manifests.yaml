@@ -936,7 +936,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: 327745427643.dkr.ecr.ca-west-1.amazonaws.com/online-boutique/productcatalogservice:d596cd602b86dc6945037dfcc73662a7961f0a97
+        image: 327745427643.dkr.ecr.ca-west-1.amazonaws.com/online-boutique/productcatalogservice:4171ee4fa58c32fae530f6e6e7477ac6e98a7511
         ports:
         - containerPort: 3550
         env:
